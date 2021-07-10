@@ -30,6 +30,9 @@
 #include <QProcess>
 #include "log.h"
 
+#include <QGuiApplication>
+#include <QDebug>
+
 #include <QX11Info>
 // XKB, this should be disabled in Wayland?
 #include <X11/XKBlib.h>
@@ -77,8 +80,12 @@ bool SessionApplication::startup()
 
     loadEnvironmentSettings(settings);
     // loadFontSettings(settings);
-    loadKeyboardSettings(settings);
-    loadMouseSettings(settings);
+
+    if(QGuiApplication::platformName() == QStringLiteral("xcb")) {
+        // X11 session is started
+        loadKeyboardSettings(settings);
+        loadMouseSettings(settings);
+    }
 
 #if defined(WITH_LIBUDEV_MONITOR)
     UdevNotifier * dev_notifier = new UdevNotifier{QStringLiteral("input"), this}; //will be released upon our destruction
@@ -90,7 +97,8 @@ bool SessionApplication::startup()
                 //XXX: is this a race? (because settings can be currently changed by lxqt-config-input)
                 //     but with such a little probablity we can live...
                 LXQt::Settings settings(configName);
-                loadKeyboardSettings(settings);
+                if(QGuiApplication::platformName() == QStringLiteral("xcb"))
+                    loadKeyboardSettings(settings);
             });
     connect(dev_notifier, &UdevNotifier::deviceAdded, this, [this, dev_timer] (QString device)
             {
